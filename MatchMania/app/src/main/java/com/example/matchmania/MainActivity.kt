@@ -26,16 +26,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -117,14 +123,22 @@ fun MatchManiaScreen() {
             //   cell must look different per tile.state, and a tap must produce a
             //   new board (board = board.flip(index)). Design the rest yourself.
             // ════════════════════════════════════════════════════════════════
-            BoardPlaceholder(board)
+            BoardGrid(board = board, onFlip = { index -> board = board.flip(index) })
 
             Spacer(Modifier.height(16.dp))
 
             // C3 — TODO: when the board is solved, show a celebratory "You win"
             //   banner here (include the move count). For now we only show the
             //   Check button's message, if any.
-            if (message.isNotEmpty()) {
+            if (board.isSolved()) {
+                Text(
+                    text = "🎉 You win in ${board.moves} moves!",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            } else if (message.isNotEmpty()) {
                 Text(message, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
             }
 
@@ -164,23 +178,41 @@ fun MatchManiaScreen() {
     }
 }
 
-// ── Temporary placeholder for the board (DELETE once C2 is done) ──────────────
-// A bordered card with a message, just so the starter shows *something* and runs.
+// ── The real board grid (C2) ────────────────────────────────────────────────
 @Composable
-private fun BoardPlaceholder(board: Board) {
-    OutlinedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(280.dp),
-        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+private fun BoardGrid(board: Board, onFlip: (Int) -> Unit) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(GRID_SIZE),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-            Text(
-                text = "TODO (C2): build the ${GRID_SIZE}×${GRID_SIZE} board grid here.\n" +
-                       "The board already holds ${board.tiles.size} tiles, ready to draw.",
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        items(board.tiles.size) { index ->
+            TileCell(tile = board.tiles[index], onClick = { onFlip(index) })
+        }
+    }
+}
+
+@Composable
+private fun TileCell(tile: Tile, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = when (tile.state) {
+                TileState.FaceDown -> MaterialTheme.colorScheme.secondaryContainer
+                TileState.FaceUp -> MaterialTheme.colorScheme.surfaceVariant
+                TileState.Matched -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            }
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (tile.state != TileState.FaceDown) {
+                Text(text = tile.face, fontSize = 32.sp)
+            } else {
+                Text(text = "❓", fontSize = 24.sp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
         }
     }
 }

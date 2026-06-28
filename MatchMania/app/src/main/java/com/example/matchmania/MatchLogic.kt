@@ -74,9 +74,9 @@ data class Board(val tiles: List<Tile>, val moves: Int) {
 // TODO (B2): the stub returns the pairs UNSHUFFLED so the app still runs and the
 //            grid renders 16 tiles. Replace it with the real, shuffled version.
 fun newBoard(symbols: List<String>, random: Random = Random.Default): Board {
-    val placeholder = (symbols.take(PAIR_COUNT) + symbols.take(PAIR_COUNT))
-        .map { Tile(it, TileState.FaceDown) }
-    return Board(tiles = placeholder, moves = 0)
+    val pool = (symbols.take(PAIR_COUNT) + symbols.take(PAIR_COUNT)).shuffled(random)
+    val tiles = pool.map { Tile(it, TileState.FaceDown) }
+    return Board(tiles = tiles, moves = 0)
 }
 
 // ── B3 (assignment Part B): flip a tile — THE HEART OF THE GAME ──────────────
@@ -87,7 +87,41 @@ fun newBoard(symbols: List<String>, random: Random = Random.Default): Board {
 //
 // TODO (B3): the stub below is a no-op so tapping doesn't crash. Implement it.
 fun Board.flip(index: Int): Board {
-    return this
+    val tile = tiles[index]
+    if (tile.state != TileState.FaceDown) return this
+
+    val up = faceUpIndices()
+    return when (up.size) {
+        0 -> {
+            copy(tiles = tiles.mapIndexed { i, t ->
+                if (i == index) t.copy(state = TileState.FaceUp) else t
+            })
+        }
+        1 -> {
+            val firstIndex = up[0]
+            val firstTile = tiles[firstIndex]
+            val isMatch = firstTile.face == tile.face
+            val nextTiles = tiles.mapIndexed { i, t ->
+                when (i) {
+                    index -> t.copy(state = if (isMatch) TileState.Matched else TileState.FaceUp)
+                    firstIndex -> if (isMatch) t.copy(state = TileState.Matched) else t
+                    else -> t
+                }
+            }
+            Board(tiles = nextTiles, moves = moves + 1)
+        }
+        2 -> {
+            val nextTiles = tiles.mapIndexed { i, t ->
+                when {
+                    i == index -> t.copy(state = TileState.FaceUp)
+                    i in up -> t.copy(state = TileState.FaceDown)
+                    else -> t
+                }
+            }
+            copy(tiles = nextTiles)
+        }
+        else -> this
+    }
 }
 
 // ── B4 (assignment Part B): reset (clear) the board ─────────────────────────
@@ -96,5 +130,8 @@ fun Board.flip(index: Int): Board {
 //
 // TODO (B4): the stub returns the board unchanged. Implement the real reset.
 fun Board.reset(): Board {
-    return this
+    return Board(
+        tiles = tiles.map { it.copy(state = TileState.FaceDown) },
+        moves = 0
+    )
 }
